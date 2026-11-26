@@ -26,6 +26,15 @@ public final class DayRecord {
     return MarkdownParser.parse(markdown, date: displayDate(), previous: previous, dayId: id)
   }
 
+  public var hasPlanContent: Bool {
+    Self.hasPlanContent(markdown: markdown, dayKey: dayKey)
+  }
+
+  static func hasPlanContent(markdown: String, dayKey: String) -> Bool {
+    let text = markdown.trimmingCharacters(in: .whitespacesAndNewlines)
+    return !text.isEmpty && text != "# \(dayKey)"
+  }
+
   public func update(markdown: String, plan: DailyPlan) throws {
     let data = try JSONEncoder().encode(plan)
     self.markdown = markdown

@@ -6,6 +6,36 @@ import Testing
 
 @MainActor
 struct StorageTests {
+  @Test func openingEmptyDayDoesNotSaveUntilItHasContent() throws {
+    let schema = Schema([DayRecord.self])
+    let container = try ModelContainer(
+      for: schema,
+      configurations: ModelConfiguration(
+        schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+    let context = ModelContext(container)
+    let repository = DayRepository(context: context)
+    let date = Date.now
+    let record = try repository.day(for: date)
+    let allDays = FetchDescriptor<DayRecord>()
+
+    #expect(try context.fetchCount(allDays) == 0)
+    let template = record.markdown
+    for source in [template, " \n\t"] {
+      let plan = MarkdownParser.parse(source, date: date, dayId: record.id)
+      #expect(try !repository.save(record, markdown: source, plan: plan))
+      #expect(try context.fetchCount(allDays) == 0)
+    }
+
+    let source = template + "Notes for today\n"
+    let plan = MarkdownParser.parse(source, date: date, dayId: record.id)
+    #expect(try repository.save(record, markdown: source, plan: plan))
+    #expect(try context.fetchCount(allDays) == 1)
+    #expect(try repository.day(for: date).id == record.id)
+    #expect(record.hasPlanContent)
+    try repository.save(record, markdown: template, plan: plan)
+    #expect(!record.hasPlanContent)
+  }
+
   @Test func duplicateDaysAreArchivedBeforeRemoval() throws {
     let schema = Schema([DayRecord.self])
     let container = try ModelContainer(
@@ -13,19 +43,24 @@ struct StorageTests {
       configurations: ModelConfiguration(
         schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none))
     let context = ModelContext(container)
-    let older = DayRecord(date: .now, markdown: "# Today\n- Older task")
+    let olderMarkdown = "# Today\n- Older task"
+    let older = DayRecord(date: .now, markdown: olderMarkdown)
     let newer = DayRecord(date: .now, markdown: "# Today\n- Newer task")
+    let empty = DayRecord(date: newer.displayDate(), markdown: "# \(newer.dayKey)\n\n")
     older.updatedAt = .distantPast
+    empty.updatedAt = .distantFuture
     context.insert(older)
     context.insert(newer)
+    context.insert(empty)
     try context.save()
     let folder = URL.temporaryDirectory.appending(path: UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: folder) }
     let repository = DayRepository(context: context, recoveryDirectory: folder)
     #expect(try repository.day(for: .now).id == newer.id)
     #expect(try context.fetchCount(FetchDescriptor<DayRecord>()) == 1)
-    let draft = try #require(RecoveryArchive.drafts(directory: folder).first)
-    #expect(try String(contentsOf: draft.url, encoding: .utf8).contains("Older task"))
+    let drafts = try RecoveryArchive.drafts(directory: folder)
+    #expect(
+      try drafts.contains { try String(contentsOf: $0.url, encoding: .utf8) == olderMarkdown })
   }
 
   @Test func changingDateCannotOverwriteAnotherPlan() throws {
@@ -38,6 +73,10 @@ struct StorageTests {
     let today = try repository.day(for: .now)
     let tomorrowDate = try #require(Calendar.current.date(byAdding: .day, value: 1, to: .now))
     let tomorrow = try repository.day(for: tomorrowDate)
+    let tomorrowMarkdown = tomorrow.markdown + "- Keep this task"
+    try repository.save(
+      tomorrow, markdown: tomorrowMarkdown,
+      plan: MarkdownParser.parse(tomorrowMarkdown, date: tomorrowDate, dayId: tomorrow.id))
     let source = "# \(tomorrow.dayKey)\n- Changed"
     let original = today.markdown
     #expect(throws: DayConflictError.self) {

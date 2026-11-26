@@ -41,7 +41,7 @@ struct DaySidebar: View {
 
   private var uniqueDays: [DayRecord] {
     var seen: Set<String> = []
-    return records.filter { seen.insert($0.dayKey).inserted }
+    return records.filter { $0.hasPlanContent && seen.insert($0.dayKey).inserted }
   }
   private func today() { selectedDate = .now }
   private func select(_ record: DayRecord) { selectedDate = record.displayDate(calendar: calendar) }

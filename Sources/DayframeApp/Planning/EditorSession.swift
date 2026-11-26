@@ -35,9 +35,9 @@ final class EditorSession {
     guard markdown != savedMarkdown else { return }
     reparse()
     do {
-      try repository.save(record, markdown: markdown, plan: plan)
+      let persisted = try repository.save(record, markdown: markdown, plan: plan)
       savedMarkdown = markdown
-      sync.markPending()
+      if persisted { sync.markPending() }
       self.error = nil
     } catch { self.error = error.localizedDescription }
   }
