@@ -1,0 +1,44 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:dayframe}",
+            "name": "Debug Dayframe",
+            "target": "Dayframe",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug Dayframe"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:dayframe}",
+            "name": "Release Dayframe",
+            "target": "Dayframe",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release Dayframe"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:dayframe}",
+            "name": "Debug DayframeDesktop",
+            "target": "DayframeDesktop",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug DayframeDesktop"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:dayframe}",
+            "name": "Release DayframeDesktop",
+            "target": "DayframeDesktop",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release DayframeDesktop"
+        }
+    ]
+}
