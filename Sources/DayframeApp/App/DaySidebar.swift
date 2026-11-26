@@ -3,14 +3,22 @@ import SwiftUI
 
 struct DaySidebar: View {
   @Environment(\.calendar) private var calendar
-  @Binding var selectedDate: Date
+  let selectedDate: Date
   let records: [DayRecord]
+  let selectDate: @MainActor @Sendable (Date) -> Void
 
   var body: some View {
     List {
       Section {
-        DatePicker("Date", selection: $selectedDate, displayedComponents: .date)
+        #if os(iOS)
+          DayCalendar(selectedDate: selectedDate, selectDate: selectDate)
+        #else
+          DatePicker(
+            "Date", selection: Binding(get: { selectedDate }, set: selectDate),
+            displayedComponents: .date
+          )
           .datePickerStyle(.graphical)
+        #endif
         Button("Today", systemImage: "calendar", action: today)
           .keyboardShortcut("t", modifiers: [.command, .shift])
       }
@@ -32,6 +40,7 @@ struct DaySidebar: View {
             }
           }
           .buttonStyle(.plain).frame(minHeight: 44)
+          .accessibilityIdentifier("saved-day-\(record.dayKey)")
         }
       }
     }
@@ -43,6 +52,6 @@ struct DaySidebar: View {
     var seen: Set<String> = []
     return records.filter { $0.hasPlanContent && seen.insert($0.dayKey).inserted }
   }
-  private func today() { selectedDate = .now }
-  private func select(_ record: DayRecord) { selectedDate = record.displayDate(calendar: calendar) }
+  private func today() { selectDate(.now) }
+  private func select(_ record: DayRecord) { selectDate(record.displayDate(calendar: calendar)) }
 }

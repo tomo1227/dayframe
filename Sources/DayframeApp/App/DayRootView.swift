@@ -15,7 +15,7 @@ struct DayRootView: View {
 
   var body: some View {
     NavigationSplitView(preferredCompactColumn: $preferredColumn) {
-      DaySidebar(selectedDate: $selectedDate, records: records)
+      DaySidebar(selectedDate: selectedDate, records: records, selectDate: selectDate)
     } detail: {
       if let record {
         DayWorkspace(record: record, context: context, sync: sync)
@@ -28,20 +28,43 @@ struct DayRootView: View {
         ProgressView()
       }
     }
-    .task(id: DayRecord.key(for: selectedDate, calendar: calendar)) { loadDay() }
+    .task { loadDay() }
     .task { await sync.start() }
-    .onChange(of: records.count) { loadDay() }
+    .onChange(of: selectedRecordIDs) { loadDay() }
     .onChange(of: record?.dayKey) {
-      if let record { selectedDate = record.displayDate(calendar: calendar) }
+      if let record, record.dayKey != selectedDayKey {
+        selectedDate = record.displayDate(calendar: calendar)
+      }
     }
     .onChange(of: scenePhase) { if scenePhase == .active { Task { await sync.start() } } }
   }
 
+  private var selectedDayKey: String { DayRecord.key(for: selectedDate, calendar: calendar) }
+
+  private var selectedRecordIDs: Set<UUID> {
+    let key = selectedDayKey
+    return Set(records.lazy.filter { $0.dayKey == key }.map(\.id))
+  }
+
+  private func selectDate(_ date: Date) {
+    selectedDate = date
+    loadDay()
+    preferredColumn = .detail
+  }
+
   private func loadDay() {
+    let ids = selectedRecordIDs
+    if let record, record.dayKey == selectedDayKey,
+      ids == [record.id] || (ids.isEmpty && record.modelContext == nil)
+    {
+      return
+    }
     do {
       record = try DayRepository(context: context).day(for: selectedDate, calendar: calendar)
       loadError = nil
-      preferredColumn = .detail
-    } catch { loadError = error.localizedDescription }
+    } catch {
+      record = nil
+      loadError = error.localizedDescription
+    }
   }
 }
