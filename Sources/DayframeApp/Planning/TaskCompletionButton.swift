@@ -11,7 +11,7 @@ struct TaskCompletionButton: View {
       systemImage: task.isCompleted ? "checkmark.circle.fill" : "circle", action: toggle
     )
     .labelStyle(.iconOnly).font(.title3)
-    .foregroundStyle(task.isCompleted ? DayframeStyle.accent : .secondary)
+    .foregroundStyle(task.isCompleted ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
     .frame(minWidth: 44, minHeight: 44)
     .buttonStyle(.plain)
     .accessibilityLabel(

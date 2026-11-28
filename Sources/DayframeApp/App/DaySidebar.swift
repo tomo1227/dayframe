@@ -32,10 +32,9 @@ struct DaySidebar: View {
               Spacer()
               if calendar.isDate(record.displayDate(calendar: calendar), inSameDayAs: selectedDate)
               {
-                Image(systemName: "circle.fill").font(.caption).foregroundStyle(
-                  DayframeStyle.accent
-                )
-                .accessibilityHidden(true)
+                Image(systemName: "circle.fill").font(.caption)
+                  .foregroundStyle(.tint)
+                  .accessibilityHidden(true)
               }
             }
           }

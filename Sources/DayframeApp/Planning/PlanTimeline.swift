@@ -13,21 +13,21 @@ struct PlanTimeline: View {
       LazyVStack(alignment: .leading, spacing: 12) {
         HStack(alignment: .firstTextBaseline) {
           Text(session.plan.date, format: .dateTime.weekday(.wide).locale(locale))
-            .font(.title3).textCase(.uppercase)
+            .font(DayframeStyle.japaneseHeading(size: 20, relativeTo: .title3))
+            .textCase(.uppercase)
           Spacer()
-          Image(systemName: "sun.max").foregroundStyle(DayframeStyle.accent).accessibilityHidden(
-            true)
+          Image(systemName: "sun.max").foregroundStyle(.tint).accessibilityHidden(true)
         }
         Text(session.plan.date, format: .dateTime.month(.wide).day().year().locale(locale))
-          .font(.system(.largeTitle, design: .serif))
+          .font(DayframeStyle.japaneseHeading(size: 34, relativeTo: .largeTitle))
         if !session.plan.title.isEmpty,
           MarkdownParser.parseDate(session.plan.title, relativeTo: session.record.displayDate())
             == nil
         {
-          Text(session.plan.title).font(.system(.title2, design: .serif))
+          Text(session.plan.title)
+            .font(DayframeStyle.japaneseHeading(size: 22, relativeTo: .title2))
         }
         ProgressView(value: session.plan.progress)
-          .tint(DayframeStyle.accent)
           .accessibilityLabel("Completion")
         Text("\(session.plan.completedCount) / \(session.plan.tasks.count) completed")
           .font(.callout).foregroundStyle(.secondary)

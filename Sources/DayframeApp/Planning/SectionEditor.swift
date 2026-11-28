@@ -15,7 +15,7 @@ struct SectionEditor: View {
 
   var body: some View {
     NavigationStack {
-      Form { TextField("Section name", text: $title) }
+      Form { TextField("Section name", text: $title).font(DayframeStyle.japaneseBody()) }
         .navigationTitle(section == nil ? Text("New section") : Text("Edit section"))
         .toolbar {
           ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: cancel) }
