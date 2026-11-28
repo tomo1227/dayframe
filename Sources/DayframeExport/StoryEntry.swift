@@ -8,5 +8,6 @@ public struct StoryEntry: Identifiable, Equatable, Sendable {
   public let time: String?
   public let isCompleted: Bool
   public let isContinuation: Bool
+  public let isCode: Bool
   public let height: Double
 }

@@ -15,20 +15,23 @@ public struct StoryCanvas: View {
   }
 
   public var body: some View {
+    let aspectRatio = options.aspectRatio
     VStack(alignment: .leading, spacing: 0) {
       HStack {
         Text(plan.date.formatted(.dateTime.weekday(.wide).locale(locale)).uppercased())
-          .font(.custom("HelveticaNeue", fixedSize: 10))
+          .font(.custom(StoryFont.sans.postScriptName, fixedSize: 10))
         Spacer()
         Image(systemName: "sun.max").font(.system(size: 16)).accessibilityHidden(true)
       }
       .padding(.bottom, 12)
       Text(dateLabel)
         .font(
-          .custom(options.font.postScriptName, fixedSize: options.template == .editorial ? 32 : 24)
+          .custom(
+            options.font.postScriptName,
+            fixedSize: options.headingSize(options.template == .editorial ? 32 : 24))
         )
-        .lineLimit(2).minimumScaleFactor(0.8)
-        .frame(height: 74, alignment: .top)
+        .lineLimit(2).minimumScaleFactor(0.65)
+        .padding(.bottom, 8)
       Rectangle().fill(options.foreground).frame(height: options.template == .editorial ? 2 : 0.5)
         .padding(.bottom, 18)
       VStack(alignment: .leading, spacing: 0) {
@@ -50,8 +53,9 @@ public struct StoryCanvas: View {
         }
       }
     }
-    .padding(.horizontal, 40).padding(.vertical, 60)
-    .frame(width: 360, height: 640)
+    .padding(.horizontal, StoryAspectRatio.horizontalInset)
+    .padding(.vertical, aspectRatio.verticalInset)
+    .frame(width: aspectRatio.canvasSize.width, height: aspectRatio.canvasSize.height)
     .foregroundStyle(options.foreground)
     .background(options.background)
     .environment(\.colorScheme, options.template == .dark ? .dark : .light)

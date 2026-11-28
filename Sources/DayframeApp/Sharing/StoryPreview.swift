@@ -10,15 +10,19 @@ struct StoryPreview: View {
   @Binding var selectedPage: Int
 
   var body: some View {
+    let canvasSize = options.aspectRatio.canvasSize
+    let scale = min(252 / canvasSize.width, 448 / canvasSize.height)
+    let previewWidth = canvasSize.width * scale
+    let previewHeight = canvasSize.height * scale
     VStack(spacing: 16) {
       if pages.indices.contains(selectedPage) {
         StoryCanvas(plan: plan, page: pages[selectedPage], options: options, locale: locale)
-          .scaleEffect(0.7, anchor: .topLeading)
-          .frame(width: 252, height: 448, alignment: .topLeading)
+          .scaleEffect(scale, anchor: .topLeading)
+          .frame(width: previewWidth, height: previewHeight, alignment: .topLeading)
           .border(.secondary.opacity(0.3))
           .accessibilityLabel("Story preview")
       } else {
-        ProgressView().frame(width: 252, height: 448)
+        ProgressView().frame(width: previewWidth, height: previewHeight)
       }
       if pages.count > 1 {
         Picker("Page", selection: $selectedPage) {

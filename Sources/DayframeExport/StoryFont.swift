@@ -5,8 +5,8 @@ public enum StoryFont: String, CaseIterable, Identifiable, Sendable {
   public var id: Self { self }
   public var postScriptName: String {
     switch self {
-    case .serif: "Georgia"
-    case .sans: "HelveticaNeue"
+    case .serif: "HiraMinProN-W3"
+    case .sans: "HiraginoSans-W3"
     case .mono: "Menlo-Regular"
     }
   }
