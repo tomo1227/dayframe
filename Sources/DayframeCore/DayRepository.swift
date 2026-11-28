@@ -11,14 +11,17 @@ public final class DayRepository {
     self.recoveryDirectory = recoveryDirectory
   }
 
-  public func day(for date: Date, calendar: Calendar = .current) throws -> DayRecord {
+  public func day(for date: Date, calendar: Calendar = .current, draftBody: String = "") throws
+    -> DayRecord
+  {
     let key = DayRecord.key(for: date, calendar: calendar)
     let matches = try records(for: key)
     if let existing = matches.first(where: \.hasPlanContent) ?? matches.first {
       try reconcile(matches, keeping: existing)
       return existing
     }
-    return DayRecord(date: date, markdown: "# \(key)\n\n", calendar: calendar)
+    return DayRecord(
+      date: date, markdown: DayRecord.markdownTemplate(for: key) + draftBody, calendar: calendar)
   }
 
   @discardableResult

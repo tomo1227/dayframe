@@ -1,6 +1,39 @@
 import Foundation
 
 public enum MarkdownEditing {
+  public static let taskNotePrefix = "@note "
+
+  public static func checklist(_ text: String, following prefix: String) -> String {
+    var fenced = prefix.split(whereSeparator: \.isNewline).reduce(false) { open, line in
+      if case .fence = MarkdownLine.read(String(line)) { return !open }
+      return open
+    }
+    return text.components(separatedBy: "\n").map { line in
+      let kind = MarkdownLine.read(line)
+      if case .fence = kind {
+        fenced.toggle()
+        return line
+      }
+      if fenced { return line }
+      switch kind {
+      case .heading, .section, .description: return line
+      default: break
+      }
+      let indent = line.prefix(while: \.isWhitespace)
+      var body = line.dropFirst(indent.count)
+      if body.isEmpty { return text.contains("\n") ? line : "\(indent)- [ ] " }
+      if body.hasPrefix("- ") || body.hasPrefix("+ ") || body.hasPrefix("* ") {
+        body = body.dropFirst(2)
+      }
+      if body == "[ ]" || body.lowercased() == "[x]" || body.hasPrefix("[ ] ")
+        || body.lowercased().hasPrefix("[x] ")
+      {
+        return line
+      }
+      return "\(indent)- [ ] \(body)"
+    }.joined(separator: "\n")
+  }
+
   public static func taskLine(title: String, time: String, completed: Bool) -> String {
     let prefix = time.isEmpty ? "" : "\(time) "
     return
@@ -15,7 +48,9 @@ public enum MarkdownEditing {
     guard let range = block(for: task, lines: lines) else { return markdown }
     var replacement = [taskLine(title: title, time: time, completed: task.isCompleted)]
     if !description.isEmpty {
-      replacement += description.components(separatedBy: "\n").map { "  \($0)" }
+      let usesTaskNotes = lines[range].dropFirst().contains { MarkdownLine.taskNote(in: $0) != nil }
+      let prefix = usesTaskNotes ? taskNotePrefix : "  "
+      replacement += description.components(separatedBy: "\n").map { prefix + $0 }
     }
     lines.replaceSubrange(range, with: replacement)
     return lines.joined(separator: "\n")
@@ -80,9 +115,10 @@ public enum MarkdownEditing {
   private static func block(for task: PlanTask, lines: [String]) -> Range<Int>? {
     guard lines.indices.contains(task.sourceLine) else { return nil }
     var end = task.sourceLine + 1
-    while lines.indices.contains(end), lines[end].hasPrefix("  "),
-      !lines[end].trimmingCharacters(in: .whitespaces).isEmpty
-    { end += 1 }
+    while lines.indices.contains(end) {
+      guard case .description = MarkdownLine.read(lines[end]) else { break }
+      end += 1
+    }
     return task.sourceLine..<end
   }
 }

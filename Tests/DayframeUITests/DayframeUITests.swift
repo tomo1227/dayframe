@@ -1,8 +1,181 @@
+import CoreImage
 import XCTest
 
 @MainActor
 final class DayframeUITests: XCTestCase {
   #if os(iOS)
+    func testAppearanceMenuSwitchesBetweenLightAndDark() throws {
+      let app = XCUIApplication()
+      app.launchArguments = ["--ui-testing", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+      app.launch()
+      XCTAssertTrue(app.buttons["new-task"].waitForExistence(timeout: 10))
+
+      let overflow = app.buttons["TopOverflowBarButtonItem"]
+      let appearance = app.buttons["Appearance"]
+      for (label, expected) in [("Light", 255), ("Dark", 0)] {
+        overflow.tap()
+        XCTAssertTrue(appearance.waitForExistence(timeout: 5))
+        appearance.tap()
+        let option = app.buttons[label]
+        XCTAssertTrue(option.waitForExistence(timeout: 5))
+        option.tap()
+        XCTAssertTrue(option.waitForNonExistence(timeout: 5))
+        let brightness = try backgroundBrightness(in: app.screenshot())
+        XCTAssertEqual(brightness, expected, accuracy: 55, label)
+      }
+    }
+
+    private func backgroundBrightness(in screenshot: XCUIScreenshot) throws -> Int {
+      let image = try XCTUnwrap(CIImage(data: screenshot.pngRepresentation))
+      let extent = image.extent
+      let sample = extent.insetBy(dx: extent.width * 0.14, dy: extent.height * 0.25)
+      let averaged = image.applyingFilter(
+        "CIAreaAverage", parameters: ["inputExtent": CIVector(cgRect: sample)])
+      let colorSpace = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+      var pixel = [UInt8](repeating: 0, count: 4)
+      pixel.withUnsafeMutableBytes { buffer in
+        guard let address = buffer.baseAddress else { return }
+        CIContext().render(
+          averaged, toBitmap: address, rowBytes: 4,
+          bounds: CGRect(x: 0, y: 0, width: 1, height: 1), format: .RGBA8, colorSpace: colorSpace)
+      }
+      return pixel.prefix(3).map(Int.init).reduce(0, +) / 3
+    }
+
+    func testMarkdownRestoresMissingDateHeadingAboveExistingPlan() throws {
+      let app = XCUIApplication()
+      app.launchArguments = [
+        "--ui-testing", "--headerless-plan", "-AppleLanguages", "(en)", "-AppleLocale", "en_US",
+      ]
+      app.launch()
+
+      let markdown = app.segmentedControls.buttons["Markdown"]
+      XCTAssertTrue(markdown.waitForExistence(timeout: 10))
+      markdown.tap()
+      let editor = app.textViews["markdown-editor"]
+      XCTAssertTrue(editor.waitForExistence(timeout: 5))
+      let today = Date.now.formatted(
+        Date.ISO8601FormatStyle(timeZone: .current).year().month().day())
+      let value = try XCTUnwrap(editor.value as? String)
+      XCTAssertTrue(value.hasPrefix("# \(today)\n\n- [ ] Pack lunch"), value)
+
+      app.segmentedControls.buttons["Plan"].tap()
+      XCTAssertTrue(app.buttons["task-completion-Pack lunch"].waitForExistence(timeout: 5))
+    }
+
+    func testMarkdownKeyboardInsertsSingleFenceAndSymbolsAtCursor() throws {
+      let app = XCUIApplication()
+      app.launchArguments = ["--ui-testing", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+      app.launch()
+
+      let markdown = app.segmentedControls.buttons["Markdown"]
+      XCTAssertTrue(markdown.waitForExistence(timeout: 10))
+      markdown.tap()
+      let editor = app.textViews["markdown-editor"]
+      XCTAssertTrue(editor.waitForExistence(timeout: 5))
+      let heading = app.buttons["markdown-insert-heading"]
+      XCTAssertFalse(heading.exists)
+
+      editor.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.75)).tap()
+      XCTAssertTrue(heading.waitForExistence(timeout: 5))
+      editor.typeText("\n")
+      heading.tap()
+      editor.typeText("Notes\n")
+      app.buttons["markdown-insert-subheading"].tap()
+      editor.typeText("Example\n")
+      editor.typeText("Pack lunch")
+      app.buttons["markdown-make-checklist"].tap()
+      editor.typeText("\n")
+      app.buttons["markdown-insert-backtick"].tap()
+      editor.typeText("inline")
+      app.buttons["markdown-insert-backtick"].tap()
+      editor.typeText("\n")
+      app.buttons["markdown-insert-fence"].tap()
+      app.buttons["markdown-insert-asterisk"].tap()
+      editor.typeText("続き")
+
+      let value = try XCTUnwrap(editor.value as? String)
+      let expected = "\n# Notes\n## Example\n- [ ] Pack lunch\n`inline`\n```*続き"
+      XCTAssertTrue(value.hasPrefix("# "), value)
+      XCTAssertTrue(value.contains(expected), value)
+      XCTAssertEqual(value.components(separatedBy: "```").count, 2)
+      app.segmentedControls.buttons["Plan"].tap()
+      XCTAssertTrue(heading.waitForNonExistence(timeout: 5))
+    }
+
+    func testNewPlanUsesPreferredTemplateAndExportHasIndependentSizeControls() {
+      let app = XCUIApplication()
+      app.launchArguments = [
+        "--ui-testing", "-AppleLanguages", "(en)", "-AppleLocale", "en_US",
+        "-newPlanTemplate", "daily",
+      ]
+      app.launch()
+      let markdown = app.segmentedControls.buttons["Markdown"]
+      XCTAssertTrue(markdown.waitForExistence(timeout: 10))
+      markdown.tap()
+      let editor = app.textViews["markdown-editor"]
+      XCTAssertTrue(editor.waitForExistence(timeout: 5))
+      let templateBody = "## Morning\n\n## Afternoon\n\n## Evening"
+      XCTAssertTrue((editor.value as? String)?.contains(templateBody) == true)
+      app.buttons["export-image"].tap()
+      let taskSize = app.sliders["story-task-text-size"]
+      let dateSize = app.sliders["story-date-heading-size"]
+      XCTAssertTrue(taskSize.waitForExistence(timeout: 5))
+      for _ in 0..<5 where !dateSize.isHittable { app.swipeUp() }
+      XCTAssertTrue(taskSize.isHittable)
+      XCTAssertTrue(dateSize.isHittable)
+      let initialDateSize = dateSize.value as? String
+      taskSize.adjust(toNormalizedSliderPosition: 1)
+      XCTAssertEqual(taskSize.value as? String, "175%")
+      XCTAssertEqual(dateSize.value as? String, initialDateSize)
+      dateSize.adjust(toNormalizedSliderPosition: 1)
+      XCTAssertEqual(dateSize.value as? String, "150%")
+    }
+
+    func testMarkdownShortcutsInsertDatesAndTaskSyntax() throws {
+      let app = XCUIApplication()
+      app.launchArguments = ["--ui-testing", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+      app.launch()
+      let markdown = app.segmentedControls.buttons["Markdown"]
+      XCTAssertTrue(markdown.waitForExistence(timeout: 10))
+      markdown.tap()
+
+      let editor = app.textViews["markdown-editor"]
+      XCTAssertTrue(editor.waitForExistence(timeout: 5))
+      let original = try XCTUnwrap(editor.value as? String)
+      let heading = try XCTUnwrap(original.split(separator: "\n").first)
+      let planDate = heading.dropFirst(2)
+      let today = Date.now.formatted(
+        Date.ISO8601FormatStyle(timeZone: .current).year().month().day())
+
+      editor.tap()
+      editor.typeText("\nDates: ")
+      let shortcuts = app.descendants(matching: .any).matching(
+        identifier: "markdown-shortcuts"
+      ).firstMatch
+      tapMarkdownShortcut("markdown-insert-today", in: app, menu: shortcuts)
+      editor.typeText(" / ")
+      tapMarkdownShortcut("markdown-insert-plan-date", in: app, menu: shortcuts)
+      editor.typeText("\n")
+      tapMarkdownShortcut("markdown-insert-task", in: app, menu: shortcuts)
+      editor.typeText("Pack lunch\n")
+      tapMarkdownShortcut("markdown-insert-note", in: app, menu: shortcuts)
+      editor.typeText("Use the small bag")
+
+      let value = try XCTUnwrap(editor.value as? String)
+      let expected = "Dates: \(today) / \(planDate)\n- [ ] Pack lunch\n@note Use the small bag"
+      XCTAssertTrue(value.contains(expected), value)
+    }
+
+    private func tapMarkdownShortcut(_ id: String, in app: XCUIApplication, menu: XCUIElement) {
+      XCTAssertTrue(menu.wait(for: \.isHittable, toEqual: true, timeout: 5))
+      menu.tap()
+      let item = app.buttons[id]
+      XCTAssertTrue(item.wait(for: \.isHittable, toEqual: true, timeout: 5))
+      item.tap()
+      XCTAssertTrue(item.waitForNonExistence(timeout: 5))
+    }
+
     func testCalendarWheelBrowsesWithoutOpeningPlan() throws {
       let app = XCUIApplication()
       app.launchArguments = ["--ui-testing", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
@@ -84,6 +257,35 @@ final class DayframeUITests: XCTestCase {
       back.tap()
       XCTAssertTrue(savedRows.firstMatch.waitForExistence(timeout: 5))
       XCTAssertEqual(savedRows.count, 1)
+    }
+  #endif
+
+  #if os(iOS)
+    func testAddTaskWithTimeWheel() {
+      let app = XCUIApplication()
+      app.launchArguments = ["--ui-testing", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+      app.launch()
+      let addButton = app.buttons["new-task"]
+      XCTAssertTrue(addButton.waitForExistence(timeout: 10))
+      addButton.tap()
+      let title = app.descendants(matching: .any).matching(identifier: "task-title").firstMatch
+      XCTAssertTrue(title.waitForExistence(timeout: 5))
+      XCTAssertFalse(app.pickerWheels.firstMatch.exists)
+      app.switches["task-set-time"].switches.firstMatch.tap()
+      let minutes = app.pickerWheels.element(boundBy: 1)
+      XCTAssertTrue(minutes.waitForExistence(timeout: 5))
+      minutes.swipeUp(velocity: .slow)
+
+      title.tap()
+      title.typeText("Timed task")
+      app.buttons["Save"].tap()
+      if app.segmentedControls.buttons["Markdown"].exists {
+        app.segmentedControls.buttons["Markdown"].tap()
+      }
+      let editor = app.textViews["markdown-editor"]
+      XCTAssertTrue(editor.waitForExistence(timeout: 5))
+      let markdown = editor.value as? String ?? ""
+      XCTAssertNotNil(markdown.range(of: #"09:(?!00)[0-5][0-9] Timed task"#, options: .regularExpression))
     }
   #endif
 

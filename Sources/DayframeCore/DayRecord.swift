@@ -26,6 +26,24 @@ public final class DayRecord {
     return MarkdownParser.parse(markdown, date: displayDate(), previous: previous, dayId: id)
   }
 
+  public var markdownForEditing: String {
+    var fenced = false
+    for raw in markdown.components(separatedBy: "\n") {
+      switch MarkdownLine.read(raw) {
+      case .fence: fenced.toggle()
+      case .heading where !fenced: return markdown
+      default: break
+      }
+    }
+    let template = Self.markdownTemplate(for: dayKey)
+    return markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      ? template : template + markdown
+  }
+
+  static func markdownTemplate(for dayKey: String) -> String {
+    "# \(dayKey)\n\n"
+  }
+
   public var hasPlanContent: Bool {
     Self.hasPlanContent(markdown: markdown, dayKey: dayKey)
   }

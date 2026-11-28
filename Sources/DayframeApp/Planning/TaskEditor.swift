@@ -14,14 +14,22 @@ struct TaskEditor: View {
   var body: some View {
     NavigationStack {
       Form {
-        TextField("Task", text: $draft.title, axis: .vertical).accessibilityIdentifier("task-title")
-        TextField("Time (HH:mm)", text: $draft.time)
-          .monospacedDigit()
-        if !MarkdownEditing.validTime(draft.time) {
-          Label("Enter a time from 00:00 to 23:59", systemImage: "exclamationmark.circle")
-            .foregroundStyle(.red)
+        TextField("Task", text: $draft.title, axis: .vertical)
+          .font(DayframeStyle.japaneseBody())
+          .accessibilityIdentifier("task-title")
+        Toggle("Set time", isOn: $draft.hasScheduledTime)
+          .accessibilityIdentifier("task-set-time")
+        if draft.hasScheduledTime {
+          DatePicker("Time", selection: $draft.pickerTime, displayedComponents: .hourAndMinute)
+            #if os(iOS)
+              .datePickerStyle(.wheel)
+            #else
+              .datePickerStyle(.stepperField)
+            #endif
+            .environment(\.timeZone, .gmt)
         }
-        TextField("Notes", text: $draft.description, axis: .vertical).lineLimit(3...8)
+        TextField("Notes", text: $draft.description, axis: .vertical)
+          .font(DayframeStyle.japaneseBody()).lineLimit(3...8)
         Picker("Section", selection: $draft.sectionId) {
           Text("Unsectioned").tag(UUID?.none)
           ForEach(session.plan.sections) { section in
@@ -35,9 +43,7 @@ struct TaskEditor: View {
         ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: cancel) }
         ToolbarItem(placement: .confirmationAction) {
           Button("Save", action: save)
-            .disabled(
-              draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                || !MarkdownEditing.validTime(draft.time))
+            .disabled(draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
       }
     }

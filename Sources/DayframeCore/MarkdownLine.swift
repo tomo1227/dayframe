@@ -16,8 +16,16 @@ enum MarkdownLine {
     if line.hasPrefix("- ") || line.hasPrefix("* ") || line.hasPrefix("+ ") {
       return readTask(String(line.dropFirst(2)))
     }
+    if let note = taskNote(in: raw) { return .description(note) }
     if !line.isEmpty, raw.hasPrefix("  ") { return .description(line) }
     return .ignored
+  }
+
+  static func taskNote(in raw: String) -> String? {
+    guard raw.hasPrefix(MarkdownEditing.taskNotePrefix) else { return nil }
+    let text = raw.dropFirst(MarkdownEditing.taskNotePrefix.count)
+      .trimmingCharacters(in: .whitespaces)
+    return text.isEmpty ? nil : text
   }
 
   private static func readTask(_ value: String) -> MarkdownLine {

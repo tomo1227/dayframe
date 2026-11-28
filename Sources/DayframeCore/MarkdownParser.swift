@@ -54,6 +54,41 @@ public enum MarkdownParser {
     plan.tasks[index].description += text
   }
 
+  public static func codeExcerpts(in markdown: String) -> [(sourceLine: Int, text: String)] {
+    var excerpts: [(sourceLine: Int, text: String)] = []
+    var block: [String] = []
+    var blockStart = 0
+    var followsTask = false
+    for (sourceLine, raw) in markdown.components(separatedBy: "\n").enumerated() {
+      let line = MarkdownLine.read(raw)
+      if !block.isEmpty {
+        block.append(raw)
+        if case .fence = line {
+          excerpts.append((blockStart, block.joined(separator: "\n")))
+          block.removeAll()
+        }
+        continue
+      }
+      switch line {
+      case .fence:
+        blockStart = sourceLine
+        block = [raw]
+        followsTask = false
+      case .task:
+        followsTask = true
+      case .section:
+        followsTask = false
+      case .description where followsTask:
+        break
+      default:
+        followsTask = false
+        if raw.contains("`") { excerpts.append((sourceLine, raw)) }
+      }
+    }
+    if !block.isEmpty { excerpts.append((blockStart, block.joined(separator: "\n"))) }
+    return excerpts
+  }
+
   public static func settingCompletion(_ completed: Bool, task: PlanTask, in markdown: String)
     -> String
   {

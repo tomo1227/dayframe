@@ -6,6 +6,38 @@ import Testing
 
 @MainActor
 struct StorageTests {
+  @Test func draftTemplateIsUsedOnlyForUnsavedDates() throws {
+    let container = try ModelContainer(
+      for: DayRecord.self,
+      configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+    let context = ModelContext(container)
+    let repository = DayRepository(context: context)
+    let date = Date.now
+    let record = try repository.day(for: date, draftBody: "## Work\n")
+    #expect(record.markdown == "# \(record.dayKey)\n\n## Work\n")
+    #expect(try context.fetchCount(FetchDescriptor<DayRecord>()) == 0)
+    let edited = record.markdown + "- Task"
+    try repository.save(record, markdown: edited, plan: MarkdownParser.parse(edited, date: date))
+    #expect(try repository.day(for: date, draftBody: "## Evening\n").markdown == edited)
+  }
+
+  @Test func editingShowsDateWhenNoHeadingExistsWithoutChangingTheStoredSource() {
+    let record = DayRecord(date: .now)
+    let template = "# \(record.dayKey)\n\n"
+    #expect(record.markdownForEditing == template)
+    #expect(record.markdown.isEmpty)
+
+    let body = "## Work\n- Task\n\n```\n# Example\n```\n"
+    record.markdown = body
+    #expect(record.markdownForEditing == template + body)
+    #expect(record.markdown == body)
+
+    for source in [template + body, "# Custom title\n\n" + body] {
+      record.markdown = source
+      #expect(record.markdownForEditing == source)
+    }
+  }
+
   @Test func openingEmptyDayDoesNotSaveUntilItHasContent() throws {
     let schema = Schema([DayRecord.self])
     let container = try ModelContainer(
@@ -97,7 +129,7 @@ struct StorageTests {
       DayRecord.key(for: record.displayDate(calendar: losAngeles), calendar: losAngeles)
         == "2026-01-03")
   }
-  @Test func localStoreSurvivesReopeningWithoutCloud() throws {
+  @Test func localStoreSurvivesReopening() throws {
     let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: directory) }
@@ -106,8 +138,7 @@ struct StorageTests {
     let source = "# Today\n## Work\n- [x] Ship Dayframe\n"
     var identity: UUID?
     do {
-      let storage = try StorageBootstrap.open(at: url, cloudIdentifier: nil)
-      #expect(!storage.cloudEnabled)
+      let storage = try StorageBootstrap.open(at: url)
       let repository = DayRepository(context: ModelContext(storage.container))
       let record = try repository.day(for: date)
       let plan = MarkdownParser.parse(source, date: date, dayId: record.id)
@@ -115,20 +146,10 @@ struct StorageTests {
       try repository.save(record, markdown: source, plan: plan)
       #expect(try repository.day(for: date).id == record.id)
     }
-    let reopened = try StorageBootstrap.open(at: url, cloudIdentifier: nil)
+    let reopened = try StorageBootstrap.open(at: url)
     let record = try DayRepository(context: ModelContext(reopened.container)).day(for: date)
     #expect(record.markdown == source)
     #expect(record.plan.tasks.first?.id == identity)
     #expect(record.plan.tasks.first?.isCompleted == true)
-  }
-
-  @Test func unavailableCloudDoesNotClaimSync() async {
-    let monitor = SyncMonitor(cloudIdentifier: nil)
-    await monitor.start()
-    monitor.markPending()
-    #expect(monitor.state == .localOnly)
-    let failed = SyncMonitor(cloudIdentifier: nil, startupFailure: "Cloud unavailable")
-    await failed.start()
-    #expect(failed.state == .failed("Cloud unavailable"))
   }
 }
