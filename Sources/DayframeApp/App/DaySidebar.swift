@@ -43,7 +43,9 @@ struct DaySidebar: View {
         }
       }
     }
-    .navigationTitle("Dayframe")
+    #if os(macOS)
+      .navigationTitle("Dayframe")
+    #endif
     .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 340)
   }
 

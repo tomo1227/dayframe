@@ -38,7 +38,6 @@ struct TaskEditor: View {
         }
         .disabled(draft.task != nil)
       }
-      .navigationTitle(draft.task == nil ? Text("New task") : Text("Edit task"))
       .toolbar {
         ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: cancel) }
         ToolbarItem(placement: .confirmationAction) {
