@@ -40,7 +40,7 @@ struct DayWorkspace: View {
           }
         #else
           ToolbarItem {
-            Menu("Plan actions", systemImage: "ellipsis.circle") {
+            Menu("Plan actions", systemImage: "ellipsis") {
               WorkspaceActions(
                 session: session, addSection: addSection, editSection: editSection,
                 importMarkdown: importMarkdown, exportMarkdown: exportMarkdown,

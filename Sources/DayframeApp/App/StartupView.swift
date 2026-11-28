@@ -15,6 +15,7 @@ struct StartupView: View {
           Text(error)
         } actions: {
           Button("Retry", action: runtime.retry)
+            .buttonStyle(.glassProminent)
         }
       } else {
         ProgressView("Dayframe")

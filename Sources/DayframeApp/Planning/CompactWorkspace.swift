@@ -7,17 +7,23 @@ struct CompactWorkspace: View {
   let edit: (PlanTask) -> Void
 
   var body: some View {
-    VStack(spacing: 0) {
-      Picker("View", selection: $mode) {
-        Text("Plan").tag(EditorMode.plan)
-        Text("Markdown").tag(EditorMode.markdown)
+    content
+      .safeAreaBar(edge: .bottom) {
+        Picker("View", selection: $mode) {
+          Text("Plan").tag(EditorMode.plan)
+          Text("Markdown").tag(EditorMode.markdown)
+        }
+        .pickerStyle(.segmented)
+        .padding(.horizontal, DayframeStyle.spacing)
+        .padding(.vertical, 8)
       }
-      .pickerStyle(.segmented).padding(DayframeStyle.spacing)
-      if mode == .plan {
-        PlanTimeline(session: session, edit: edit)
-      } else {
-        MarkdownEditor(session: session)
-      }
+  }
+
+  @ContentBuilder private var content: some View {
+    if mode == .plan {
+      PlanTimeline(session: session, edit: edit)
+    } else {
+      MarkdownEditor(session: session)
     }
   }
 }
