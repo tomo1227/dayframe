@@ -39,7 +39,7 @@ enum IconGenerator {
 let root = URL(filePath: FileManager.default.currentDirectoryPath)
 let assets = root.appending(path: "Resources/Assets.xcassets/AppIcon.appiconset")
 let iconset = root.appending(path: ".build/Dayframe.iconset")
-let source = root.appending(path: "Resources/Assets.xcassets/AppIcon.appiconset/source-icon.png")
+let source = root.appending(path: "Tools/source-icon.png")
 guard
   let properties = CGImageSourceCreateWithURL(source as CFURL, nil).map({
     CGImageSourceCopyPropertiesAtIndex($0, 0, nil) as? [CFString: Any]
