@@ -18,6 +18,8 @@ dependencies:
     - github.com/dimillian/skills/swiftui-view-refactor
     - github.com/openai/**
     - github.com/twostraws/swiftui-agent-skill/swiftui-pro
+    - github.com/emilkowalski/skills
+    - github.com/flowritescode/fwc-swiftui-skills
     - github.com/vercel-labs/**
   deny: []
   require_pinned_constraint: true
