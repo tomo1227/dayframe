@@ -87,7 +87,7 @@ struct ExportView: View {
       }
       .pickerStyle(.menu)
       ExportTextSizes(options: $options)
-      ExportSettings(plan: plan, options: $options)
+      ExportOptions(plan: plan, options: $options)
     }
   }
 

@@ -2,7 +2,7 @@ import DayframeCore
 import DayframeExport
 import SwiftUI
 
-struct ExportSettings: View {
+struct ExportOptions: View {
   let plan: DailyPlan
   @Binding var options: StoryOptions
 

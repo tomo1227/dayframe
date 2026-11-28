@@ -23,7 +23,6 @@ struct DayWorkspace: View {
 
   var body: some View {
     WorkspaceLayout(session: session, mode: $mode, edit: edit)
-      .navigationTitle("Dayframe")
       .toolbar {
         ToolbarItemGroup(placement: .primaryAction) {
           Button("New task", systemImage: "plus", action: addTask).keyboardShortcut("n")
