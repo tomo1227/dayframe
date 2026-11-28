@@ -17,15 +17,14 @@ struct DayWorkspace: View {
   @State private var showingError = false
   @State private var showingRecovery = false
 
-  init(record: DayRecord, context: ModelContext, sync: SyncMonitor) {
-    _session = State(initialValue: EditorSession(record: record, context: context, sync: sync))
+  init(record: DayRecord, context: ModelContext) {
+    _session = State(initialValue: EditorSession(record: record, context: context))
   }
 
   var body: some View {
     WorkspaceLayout(session: session, mode: $mode, edit: edit)
       .navigationTitle("Dayframe")
       .toolbar {
-        ToolbarItem(placement: .status) { SyncStatusView(monitor: session.sync) }
         ToolbarItemGroup(placement: .primaryAction) {
           Button("New task", systemImage: "plus", action: addTask).keyboardShortcut("n")
             .accessibilityIdentifier("new-task")
@@ -55,7 +54,9 @@ struct DayWorkspace: View {
       .sheet(isPresented: $showingSection) {
         SectionEditor(section: editingSection, session: session)
       }
-      .sheet(isPresented: $showingExport) { ExportView(plan: session.plan) }
+      .sheet(isPresented: $showingExport) {
+        ExportView(plan: session.plan, markdown: session.markdown)
+      }
       .sheet(isPresented: $showingRecovery) { RecoveryView(session: session) }
       .fileImporter(
         isPresented: $importing, allowedContentTypes: [.plainText, .text],
@@ -74,7 +75,7 @@ struct DayWorkspace: View {
         Text(session.error ?? "")
       }
       .onChange(of: session.markdown) { session.reparse() }
-      .onChange(of: session.record.markdown) { session.receiveRemoteChange() }
+      .onChange(of: session.record.markdown) { session.receiveRecordChange() }
       .onChange(of: session.error) { showingError = session.error != nil }
       .onChange(of: scenePhase) { if scenePhase != .active { session.save() } }
       .task(id: session.markdown) { await session.saveAfterPause() }

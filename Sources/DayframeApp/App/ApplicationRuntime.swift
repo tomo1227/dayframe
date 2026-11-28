@@ -5,7 +5,6 @@ import SwiftUI
 @MainActor @Observable
 final class ApplicationRuntime {
   private(set) var storage: StorageBootstrap?
-  private(set) var sync: SyncMonitor?
   var error: String?
 
   func open() {
@@ -16,17 +15,15 @@ final class ApplicationRuntime {
       let directory = base.appending(
         path: testing ? "Dayframe-Test-\(UUID())" : "Dayframe", directoryHint: .isDirectory)
       try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-      let configured = Bundle.main.object(forInfoDictionaryKey: "DayframeCloudContainer") as? String
-      let identifier =
-        testing ? nil : configured.flatMap { $0.isEmpty || $0.hasPrefix("$(") ? nil : $0 }
-      let result = try StorageBootstrap.open(
-        at: directory.appending(path: "Dayframe.store"), cloudIdentifier: identifier)
-      sync = SyncMonitor(
-        cloudIdentifier: result.cloudEnabled ? identifier : nil, startupFailure: result.cloudFailure
-      )
+      let result = try StorageBootstrap.open(at: directory.appending(path: "Dayframe.store"))
       storage = result
-      if testing && ProcessInfo.processInfo.arguments.contains("--sample-plan") {
-        try seedSample(result)
+      if testing {
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("--headerless-plan") {
+          try seed("- [ ] Pack lunch\n", in: result)
+        } else if arguments.contains("--sample-plan") {
+          try seedSample(result)
+        }
       }
     } catch { self.error = error.localizedDescription }
   }
@@ -40,7 +37,10 @@ final class ApplicationRuntime {
     guard let url = Bundle.main.url(forResource: "Example", withExtension: "md") else { return }
     let source = try String(contentsOf: url, encoding: .utf8)
     let today = DayRecord.key(for: .now)
-    let markdown = source.replacing("# 2026-11-26", with: "# \(today)")
+    try seed(source.replacing("# 2026-11-26", with: "# \(today)"), in: storage)
+  }
+
+  private func seed(_ markdown: String, in storage: StorageBootstrap) throws {
     let repository = DayRepository(context: storage.container.mainContext)
     let record = try repository.day(for: .now)
     try repository.save(

@@ -5,20 +5,20 @@ import SwiftUI
 struct DayRootView: View {
   @Environment(\.modelContext) private var context
   @Environment(\.calendar) private var calendar
-  @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.locale) private var locale
+  @AppStorage("newPlanTemplate") private var draftTemplate: PlanDraftTemplate = .blank
   @Query(sort: \DayRecord.date, order: .reverse) private var records: [DayRecord]
   @State private var selectedDate = Date.now
   @State private var record: DayRecord?
   @State private var loadError: String?
   @State private var preferredColumn: NavigationSplitViewColumn = .detail
-  let sync: SyncMonitor
 
   var body: some View {
     NavigationSplitView(preferredCompactColumn: $preferredColumn) {
       DaySidebar(selectedDate: selectedDate, records: records, selectDate: selectDate)
     } detail: {
       if let record {
-        DayWorkspace(record: record, context: context, sync: sync)
+        DayWorkspace(record: record, context: context)
           .id(record.id)
       } else if let loadError {
         ContentUnavailableView(
@@ -29,14 +29,12 @@ struct DayRootView: View {
       }
     }
     .task { loadDay() }
-    .task { await sync.start() }
     .onChange(of: selectedRecordIDs) { loadDay() }
     .onChange(of: record?.dayKey) {
       if let record, record.dayKey != selectedDayKey {
         selectedDate = record.displayDate(calendar: calendar)
       }
     }
-    .onChange(of: scenePhase) { if scenePhase == .active { Task { await sync.start() } } }
   }
 
   private var selectedDayKey: String { DayRecord.key(for: selectedDate, calendar: calendar) }
@@ -60,7 +58,8 @@ struct DayRootView: View {
       return
     }
     do {
-      record = try DayRepository(context: context).day(for: selectedDate, calendar: calendar)
+      record = try DayRepository(context: context).day(
+        for: selectedDate, calendar: calendar, draftBody: draftTemplate.body(locale: locale))
       loadError = nil
     } catch {
       record = nil

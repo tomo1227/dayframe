@@ -9,16 +9,18 @@ final class EditorSession {
   var error: String?
   let record: DayRecord
   let repository: DayRepository
-  let sync: SyncMonitor
   private var savedMarkdown: String
+  private var lastRecordMarkdown: String
 
-  init(record: DayRecord, context: ModelContext, sync: SyncMonitor) {
+  init(record: DayRecord, context: ModelContext) {
     self.record = record
     repository = DayRepository(context: context)
-    self.sync = sync
-    markdown = record.markdown
-    savedMarkdown = record.markdown
+    let editingMarkdown = record.markdownForEditing
+    markdown = editingMarkdown
+    savedMarkdown = editingMarkdown
+    lastRecordMarkdown = record.markdown
     plan = record.plan
+    if editingMarkdown != record.markdown { reparse() }
   }
 
   func reparse() {
@@ -35,9 +37,9 @@ final class EditorSession {
     guard markdown != savedMarkdown else { return }
     reparse()
     do {
-      let persisted = try repository.save(record, markdown: markdown, plan: plan)
+      try repository.save(record, markdown: markdown, plan: plan)
       savedMarkdown = markdown
-      if persisted { sync.markPending() }
+      lastRecordMarkdown = record.markdown
       self.error = nil
     } catch { self.error = error.localizedDescription }
   }
@@ -47,20 +49,21 @@ final class EditorSession {
     save()
   }
 
-  func receiveRemoteChange() {
-    guard record.markdown != savedMarkdown else { return }
+  func receiveRecordChange() {
+    guard record.markdown != lastRecordMarkdown else { return }
     if markdown != savedMarkdown {
       do {
         try RecoveryArchive.save(markdown, dayKey: record.dayKey)
         error = String(
-          localized: "A simultaneous edit arrived. Your draft was saved in Dayframe/Recovered.")
+          localized: "This plan was edited in another window. Your draft was saved in Dayframe/Recovered.")
       } catch {
         self.error = error.localizedDescription
         return
       }
     }
-    savedMarkdown = record.markdown
-    setMarkdown(record.markdown)
+    lastRecordMarkdown = record.markdown
+    savedMarkdown = record.markdownForEditing
+    setMarkdown(savedMarkdown)
   }
 
   func toggle(_ task: PlanTask) {
